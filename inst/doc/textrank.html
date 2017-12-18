@@ -11,7 +11,7 @@
 
 <meta name="author" content="Jan Wijffels" />
 
-<meta name="date" content="2017-11-21" />
+<meta name="date" content="2017-12-18" />
 
 <title>Textrank for summarizing text</title>
 
@@ -223,22 +223,27 @@ div.tocify {
 
 <h1 class="title toc-ignore">Textrank for summarizing text</h1>
 <h4 class="author"><em>Jan Wijffels</em></h4>
-<h4 class="date"><em>2017-11-21</em></h4>
+<h4 class="date"><em>2017-12-18</em></h4>
 
 </div>
 
 
 <div id="textrank" class="section level2">
 <h2>Textrank</h2>
-<p>TextRank – is a graph-based ranking model for text processing which can be used in order to find the most relevant sentences in text. The algorithm is explained in detail in the paper at <a href="https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf" class="uri">https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf</a></p>
+<p>TextRank – is a graph-based ranking model for text processing which can be used in order to find the most relevant sentences in text and also to find keywords. The algorithm is explained in detail in the paper at <a href="https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf" class="uri">https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf</a></p>
+<div id="identify-relevant-sentences" class="section level3">
+<h3>Identify relevant sentences</h3>
 <p>In order to find the most relevant sentences in text, a graph is constructed where the vertices of the graph represent each sentence in a document and the edges between sentences are based on content overlap, namely by calculating the number of words that 2 sentences have in common.</p>
 <p>Based on this network of sentences, the sentences are fed into the Pagerank algorithm which identifies the most important sentences. When we want to extract a summary of the text, we can now take only the most important sentences.</p>
 </div>
-<div id="usage" class="section level2">
-<h2>Usage</h2>
+<div id="identify-relevant-keywords" class="section level3">
+<h3>Identify relevant keywords</h3>
+<p>In order to find relevant keywords, the textrank algorithm constructs a word network. This network is constructed by looking which words follow one another. A link is set up between two words if they follow one another, the link gets a higher weight if these 2 words occur more frequenctly next to each other in the text.</p>
+<p>On top of the resulting network the Pagerank algorithm is applied to get the importance of each word. The top 1/3 of all these words are kept and are considered relevant. After this, a keywords table is constructed by combining the relevant words together if they appear following one another in the text.</p>
+</div>
 <div id="example-text" class="section level3">
 <h3>Example text</h3>
-<p>To show how you can apply textrank, the package includes a job description, which is printed below. We want to extract the most important sentences in the job description.</p>
+<p>To show how you can apply textrank, the package includes a job description, which is printed below. We want to extract the most important sentences in the job description as well as keywords.</p>
 <pre class="r"><code>library(textrank)
 data(joboffer)
 cat(unique(joboffer$sentence), sep = &quot;\n&quot;)</code></pre>
@@ -279,13 +284,8 @@ An environment in which you can develop your talent and make your own proposals 
 Liberty in managing your open source projects during working hours.
 Contact:
 To apply or in order to get more information about the job content, please contact us at: http://bnosac.be/index.php/contact/get-in-touch</code></pre>
-</div>
-<div id="define-terminology" class="section level3">
-<h3>Define terminology</h3>
-<p>In order to apply textrank, we need to feed the function - a data.frame with sentences and - a data.frame with tokens which correspond to each sentence.</p>
-<p>The algorithm basically computes weights between sentences by looking which words are overlapping.</p>
-<p>You probably do not want to look for overlap in words like ‘the’, ‘and’, ‘or’, … That is why, most of the time you probably will have already executed some Parts of Speech tagging in order to identify nouns, verbs, adjectives, … or you might have set up your own dictionary of words which you want to consider to find overlap between sentences.</p>
-<p>In the example on the joboffer, we did Parts of Speech tagging using the udpipe R package (<a href="https://github.com/bnosac/udpipe" class="uri">https://github.com/bnosac/udpipe</a>) so that we have a sentence identifier and a parts of speech tag for each word in the job offer.</p>
+<p>The textrank algorithm (keyword extraction / sentence ranking) requires as input the identification of words which are relevant in your domain. This is normally done by doing Parts of Speech tagging which can be done using a broad range of R packages.</p>
+<p>In the example on the joboffer, we did Parts of Speech tagging using the udpipe R package (<a href="https://github.com/bnosac/udpipe" class="uri">https://github.com/bnosac/udpipe</a>) so that we have a sentence identifier and a parts of speech tag for each word in the job offer. Which is exactly what we need for extracting keywords as well as for sentence ranking as the Parts of Speech tag allows us to easily remove irrelevant words.</p>
 <pre class="r"><code>head(joboffer[, c(&quot;sentence_id&quot;, &quot;lemma&quot;, &quot;upos&quot;)], 10)</code></pre>
 <pre><code>   sentence_id       lemma  upos
 1            1 Statistical   ADJ
@@ -298,10 +298,47 @@ To apply or in order to get more information about the job content, please conta
 8            1   developer  NOUN
 9            2      BNOSAC PROPN
 10           2           ( PUNCT</code></pre>
+<p>You can get that joboffer data.frame as follows.</p>
+<pre class="r"><code>job_rawtxt &lt;- readLines(system.file(package = &quot;textrank&quot;, &quot;extdata&quot;, &quot;joboffer.txt&quot;))
+job_rawtxt &lt;- paste(job_rawtxt, collapse = &quot;\n&quot;)
+
+library(udpipe)
+tagger &lt;- udpipe_download_model(&quot;english&quot;)
+tagger &lt;- udpipe_load_model(tagger$file_model)
+joboffer &lt;- udpipe_annotate(tagger, job_rawtxt)
+joboffer &lt;- as.data.frame(joboffer)</code></pre>
 </div>
-<div id="applying-textrank" class="section level3">
-<h3>Applying textrank</h3>
-<p>The textrank algorithm requires 2 inputs: - a data.frame with sentences and - a data.frame with words which are part of each sentence.</p>
+</div>
+<div id="textrank-for-keyword-extraction" class="section level2">
+<h2>Textrank for keyword extraction</h2>
+<p>For extracting keywords in the job description, we are providing it a vector of words and a vector of logicals indicating for each word if it is relevant. In the below case we consider only nouns, verbs and adjectives as relevant.</p>
+<pre class="r"><code>keyw &lt;- textrank_keywords(joboffer$lemma,
+                          relevant = joboffer$upos %in% c(&quot;NOUN&quot;, &quot;VERB&quot;, &quot;ADJ&quot;))
+subset(keyw$keywords, ngram &gt; 1 &amp; freq &gt; 1)</code></pre>
+<pre><code>               keyword ngram freq
+4        data-analysis     2    4
+9         data-science     2    3
+14 consultancy-service     2    2</code></pre>
+</div>
+<div id="textrank-for-sentence-ranking" class="section level2">
+<h2>Textrank for sentence ranking</h2>
+<p>The algorithm basically computes weights between sentences by looking which words are overlapping.</p>
+<p>You probably do not want to look for overlap in words like ‘the’, ‘and’, ‘or’, … That is why, most of the time you probably will have already executed some Parts of Speech tagging in order to identify nouns, verbs, adjectives, … or you might have set up your own dictionary of words which you want to consider to find overlap between sentences.</p>
+<pre class="r"><code>head(joboffer[, c(&quot;sentence_id&quot;, &quot;lemma&quot;, &quot;upos&quot;)], 10)</code></pre>
+<pre><code>   sentence_id       lemma  upos
+1            1 Statistical   ADJ
+2            1      expert  NOUN
+3            1           / PUNCT
+4            1        data  NOUN
+5            1   scientist  NOUN
+6            1           / PUNCT
+7            1  analytical   ADJ
+8            1   developer  NOUN
+9            2      BNOSAC PROPN
+10           2           ( PUNCT</code></pre>
+<div id="define-sentences-and-terminology" class="section level3">
+<h3>Define sentences and terminology</h3>
+<p>In order to apply textrank for sentence ranking, we need to feed the function <code>textrank_sentences</code> 2 inputs: - a data.frame with sentences and - a data.frame with words which are part of each sentence.</p>
 <p>In the following example, we take only nouns and adjectives.</p>
 <pre class="r"><code>sentences &lt;- unique(joboffer[, c(&quot;sentence_id&quot;, &quot;sentence&quot;)])
 terminology &lt;- subset(joboffer, upos %in% c(&quot;NOUN&quot;, &quot;ADJ&quot;))
@@ -314,12 +351,16 @@ head(terminology)</code></pre>
 5           1   scientist
 7           1  analytical
 8           1   developer</code></pre>
-<p>When applying <code>textrank</code> it looks for word (nouns/adjectives in this case) which are the same in sentences and next applies Google Pagerank on the sentence network. The result is an object of class textrank which contains the sentences, the links between the sentences and the result of Google’s Pagerank.</p>
+</div>
+<div id="applying-textrank_sentences" class="section level3">
+<h3>Applying textrank_sentences</h3>
+<p>When applying <code>textrank_sentences</code> it looks for word (nouns/adjectives in this case) which are the same in sentences and next applies Google Pagerank on the sentence network. The result is an object of class <code>textrank_sentences</code> which contains the sentences, the links between the sentences and the result of Google’s Pagerank.</p>
 <pre class="r"><code>## Textrank for finding the most relevant sentences
-tr &lt;- textrank(data = sentences, terminology = terminology)
+tr &lt;- textrank_sentences(data = sentences, terminology = terminology)
 names(tr)</code></pre>
 <pre><code>[1] &quot;sentences&quot;      &quot;sentences_dist&quot; &quot;pagerank&quot;      </code></pre>
-<pre class="r"><code>plot(sort(tr$pagerank$vector, decreasing = TRUE), type = &quot;b&quot;, ylab = &quot;Pagerank&quot;, main = &quot;Textrank&quot;)</code></pre>
+<pre class="r"><code>plot(sort(tr$pagerank$vector, decreasing = TRUE), 
+     type = &quot;b&quot;, ylab = &quot;Pagerank&quot;, main = &quot;Textrank&quot;)</code></pre>
 <p><img src="data:image/png;base64,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" width="672" /></p>
 <p>Using the summary function, we can extract the top n most relevant sentences. By default it gives the sentences in order of Pagerank importance but you can also get the n most important sentences and keep the sentence order as provided in the original sentences data.frame.</p>
 <pre class="r"><code>s &lt;- summary(tr, n = 4)
@@ -329,7 +370,7 @@ cat(s, sep = &quot;\n&quot;)</code></pre>
 Building the report on the data analysis.
 You have a strong interest in statistics and data analysis.
 The usage of a diverse range of statistical &amp; data science techniques.</code></pre>
-<p>Mark that the <code>textrank</code> function has a <code>textrank_dist</code> argument, which allows you to provide any distance type of calculation you prefer. This can e.g. be used to change the distance calculation to something based on word vectors if you like, based on Levenshtein distances, functions from the textreuse package, based on stemming or any complex calculation you prefer.</p>
+<p>Mark that the <code>textrank_sentences</code> function has a <code>textrank_dist</code> argument, which allows you to provide any distance type of calculation you prefer. This can e.g. be used to change the distance calculation to something based on word vectors if you like, based on Levenshtein distances, functions from the textreuse package, based on stemming or any complex calculation you prefer.</p>
 </div>
 <div id="minhash" class="section level3">
 <h3>Minhash</h3>
@@ -353,7 +394,7 @@ dim(candidates)</code></pre>
 4            12            32
 5            11             2
 6            12             2</code></pre>
-<pre class="r"><code>tr &lt;- textrank(data = sentences, terminology = terminology, textrank_candidates = candidates)
+<pre class="r"><code>tr &lt;- textrank_sentences(data = sentences, terminology = terminology, textrank_candidates = candidates)
 s &lt;- summary(tr, n = 4, keep.sentence.order = TRUE)
 cat(s, sep = &quot;\n&quot;)</code></pre>
 <pre><code>BNOSAC (Belgium Network of Open Source Analytical Consultants), is a Belgium consultancy company specialized in data analysis and statistical consultancy using open source tools.
