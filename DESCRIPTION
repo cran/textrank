@@ -1,9 +1,10 @@
 Package: textrank
 Type: Package
 Title: Summarize Text by Ranking Sentences and Finding Keywords
-Version: 0.2.0
+Version: 0.3.0
 Maintainer: Jan Wijffels <jwijffels@bnosac.be>
-Author: Jan Wijffels [aut, cre, cph], BNOSAC [cph]
+Author: Jan Wijffels [aut, cre, cph],
+  BNOSAC [cph]
 Authors@R: c(person('Jan', 'Wijffels', role = c('aut', 'cre', 'cph'), email = 'jwijffels@bnosac.be'), person('BNOSAC', role = 'cph'))
 Description: The 'textrank' algorithm is an extension of the 'Pagerank' algorithm for text. The algorithm allows to summarize text by calculating how sentences are related to one another. This is done by looking at overlapping terminology used in sentences in order to set up links between sentences. The resulting sentence network is next plugged into the 'Pagerank' algorithm which identifies the most important sentences in your text and ranks them. 
     In a similar way 'textrank' can also be used to extract keywords. A word network is constructed by looking if words are following one another. On top of that network the 'Pagerank' algorithm is applied to extract relevant words after which relevant words which are following one another are combined to get keywords.  
@@ -12,10 +13,10 @@ License: MPL-2.0
 URL: https://github.com/bnosac/textrank
 Encoding: UTF-8
 Imports: utils, data.table (>= 1.9.6), igraph, digest
-Suggests: textreuse, knitr
+Suggests: textreuse, knitr, udpipe (>= 0.2)
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2017-12-18 08:50:42 UTC; Jan
+Packaged: 2019-01-17 21:23:41 UTC; Jan
 Repository: CRAN
-Date/Publication: 2017-12-18 09:17:13 UTC
+Date/Publication: 2019-01-17 22:50:03 UTC

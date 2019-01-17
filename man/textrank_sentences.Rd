@@ -60,12 +60,13 @@ the calculation of the Jaccard distance to only sentence combinations which are 
 This is implemented in \code{\link{textrank_candidates_lsh}} and an example is show below.
 }
 \examples{
+library(udpipe)
 data(joboffer)
 head(joboffer)
-
-sentences <- unique(joboffer[, c("sentence_id", "sentence")])
+joboffer$textrank_id <- unique_identifier(joboffer, c("doc_id", "paragraph_id", "sentence_id"))
+sentences <- unique(joboffer[, c("textrank_id", "sentence")])
 cat(sentences$sentence)
-terminology <- subset(joboffer, upos \%in\% c("NOUN", "ADJ"), select = c("sentence_id", "lemma"))
+terminology <- subset(joboffer, upos \%in\% c("NOUN", "ADJ"), select = c("textrank_id", "lemma"))
 head(terminology)
 
 ## Textrank for finding the most relevant sentences
@@ -73,15 +74,16 @@ tr <- textrank_sentences(data = sentences, terminology = terminology)
 summary(tr, n = 2)
 summary(tr, n = 5, keep.sentence.order = TRUE)
 
+\dontrun{
 ## Using minhash to reduce sentence combinations - relevant if you have a lot of sentences
 library(textreuse)
 minhash <- minhash_generator(n = 1000, seed = 123456789)
-candidates <- textrank_candidates_lsh(x = terminology$lemma, sentence_id = terminology$sentence_id,
+candidates <- textrank_candidates_lsh(x = terminology$lemma, sentence_id = terminology$textrank_id,
                                       minhashFUN = minhash, bands = 500)
 tr <- textrank_sentences(data = sentences, terminology = terminology,
                          textrank_candidates = candidates)
 summary(tr, n = 2)
-
+}
 ## You can also reduce the number of sentence combinations by sampling
 tr <- textrank_sentences(data = sentences, terminology = terminology, max = 100)
 tr

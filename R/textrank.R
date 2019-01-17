@@ -33,15 +33,21 @@ textrank_jaccard <- function(termsa, termsb){
 #' @seealso \code{\link{textrank_sentences}}
 #' @examples
 #' library(textreuse)
+#' library(udpipe)
 #' lsh_probability(h = 1000, b = 500, s = 0.1) # A 10 percent Jaccard overlap will be detected well
 #'
 #' minhash <- minhash_generator(n = 1000, seed = 123456789)
 #'
 #' data(joboffer)
-#' terminology <- subset(joboffer, upos %in% c("NOUN", "ADJ"), select = c("sentence_id", "lemma"))
-#' candidates <- textrank_candidates_lsh(x = terminology$lemma, sentence_id = terminology$sentence_id,
+#' joboffer$textrank_id <- unique_identifier(joboffer, c("doc_id", "paragraph_id", "sentence_id"))
+#' sentences <- unique(joboffer[, c("textrank_id", "sentence")])
+#' terminology <- subset(joboffer, upos %in% c("NOUN", "ADJ"), select = c("textrank_id", "lemma"))
+#' candidates <- textrank_candidates_lsh(x = terminology$lemma, sentence_id = terminology$textrank_id,
 #'                                       minhashFUN = minhash, bands = 500)
 #' head(candidates)
+#' tr <- textrank_sentences(data = sentences, terminology = terminology,
+#'                          textrank_candidates = candidates)
+#' summary(tr, n = 2)
 textrank_candidates_lsh <- function(x, sentence_id, minhashFUN, bands){
   textrank_id_1 <- textrank_id_2 <- sentence_id.left <- sentence_id.right <- hash <- band <- NULL
 
@@ -85,17 +91,27 @@ textrank_candidates_lsh <- function(x, sentence_id, minhashFUN, bands){
 #' @export
 #' @seealso \code{\link{textrank_sentences}}
 #' @examples
+#' library(udpipe)
 #' data(joboffer)
-#' candidates <- textrank_candidates_all(unique(joboffer$sentence_id))
+#' joboffer$textrank_id <- unique_identifier(joboffer, c("doc_id", "paragraph_id", "sentence_id"))
+#' candidates <- textrank_candidates_all(unique(joboffer$textrank_id))
 #' head(candidates, 50)
 textrank_candidates_all <- function(x){
   x <- unique(x)
   x <- setdiff(x, NA)
-  candidates <- utils::combn(x = x, m = 2, simplify = FALSE)
-  candidates <- lapply(candidates, FUN=function(x){
-    list(textrank_id_1 = x[1],
-         textrank_id_2 = x[2])
-  })
+  x_length <- length(x)
+  stopifnot(x_length > 1)
+  if(x_length < 200){
+    candidates <- utils::combn(x = x, m = 2, simplify = FALSE)
+    candidates <- lapply(candidates, FUN=function(x){
+      list(textrank_id_1 = x[1],
+           textrank_id_2 = x[2])
+    })
+  }else{
+    candidates <- lapply(seq(x)[-x_length], function(i){
+      data.table::data.table(textrank_id_1 = x[i], textrank_id_2 = x[(i+1L):x_length])
+    })
+  }
   candidates <- data.table::rbindlist(candidates)
   candidates <- setDF(candidates)
   candidates
@@ -145,12 +161,13 @@ textrank_candidates_all <- function(x){
 #' }
 #' @export
 #' @examples
+#' library(udpipe)
 #' data(joboffer)
 #' head(joboffer)
-#'
-#' sentences <- unique(joboffer[, c("sentence_id", "sentence")])
+#' joboffer$textrank_id <- unique_identifier(joboffer, c("doc_id", "paragraph_id", "sentence_id"))
+#' sentences <- unique(joboffer[, c("textrank_id", "sentence")])
 #' cat(sentences$sentence)
-#' terminology <- subset(joboffer, upos %in% c("NOUN", "ADJ"), select = c("sentence_id", "lemma"))
+#' terminology <- subset(joboffer, upos %in% c("NOUN", "ADJ"), select = c("textrank_id", "lemma"))
 #' head(terminology)
 #'
 #' ## Textrank for finding the most relevant sentences
@@ -158,15 +175,16 @@ textrank_candidates_all <- function(x){
 #' summary(tr, n = 2)
 #' summary(tr, n = 5, keep.sentence.order = TRUE)
 #'
+#' \dontrun{
 #' ## Using minhash to reduce sentence combinations - relevant if you have a lot of sentences
 #' library(textreuse)
 #' minhash <- minhash_generator(n = 1000, seed = 123456789)
-#' candidates <- textrank_candidates_lsh(x = terminology$lemma, sentence_id = terminology$sentence_id,
+#' candidates <- textrank_candidates_lsh(x = terminology$lemma, sentence_id = terminology$textrank_id,
 #'                                       minhashFUN = minhash, bands = 500)
 #' tr <- textrank_sentences(data = sentences, terminology = terminology,
 #'                          textrank_candidates = candidates)
 #' summary(tr, n = 2)
-#'
+#' }
 #' ## You can also reduce the number of sentence combinations by sampling
 #' tr <- textrank_sentences(data = sentences, terminology = terminology, max = 100)
 #' tr
@@ -181,6 +199,7 @@ textrank_sentences <- function(data, terminology,
 
   stopifnot(sum(duplicated(data[, 1])) == 0)
   data <- as.data.frame(data)
+  stopifnot(nrow(data) > 1)
   data.table::setnames(data, old = colnames(data)[1:2], new = c("textrank_id", "sentence"))
 
   terminology <- as.data.table(terminology)
