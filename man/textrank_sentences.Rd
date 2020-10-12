@@ -4,9 +4,15 @@
 \alias{textrank_sentences}
 \title{Textrank - extract relevant sentences}
 \usage{
-textrank_sentences(data, terminology, textrank_dist = textrank_jaccard,
+textrank_sentences(
+  data,
+  terminology,
+  textrank_dist = textrank_jaccard,
   textrank_candidates = textrank_candidates_all(data$textrank_id),
-  max = 1000, options_pagerank = list(directed = FALSE), ...)
+  max = 1000,
+  options_pagerank = list(directed = FALSE),
+  ...
+)
 }
 \arguments{
 \item{data}{a data.frame with 1 row per sentence where the first column
@@ -60,6 +66,7 @@ the calculation of the Jaccard distance to only sentence combinations which are 
 This is implemented in \code{\link{textrank_candidates_lsh}} and an example is show below.
 }
 \examples{
+\dontshow{if(require(udpipe)) \{ }
 library(udpipe)
 data(joboffer)
 head(joboffer)
@@ -88,6 +95,7 @@ summary(tr, n = 2)
 tr <- textrank_sentences(data = sentences, terminology = terminology, max = 100)
 tr
 summary(tr, n = 2)
+\dontshow{\} # End of main if statement running only if the required packages are installed}
 }
 \seealso{
 \code{\link[igraph]{page_rank}}, \code{\link{textrank_candidates_all}}, \code{\link{textrank_candidates_lsh}}, \code{\link{textrank_jaccard}}
